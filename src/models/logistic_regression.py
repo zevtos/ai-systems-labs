@@ -43,7 +43,7 @@ class LogisticRegression(BaseModel):
                 self.weights = self.weights - self.learning_rate * grad_weights
                 self.bias = self.bias - self.learning_rate * grad_bias
                 
-                self.history['train_loss'].append(loss.item())
+                self.history['train_loss'].append(data_loss.item())
                 train_metrics = self.score(X, y)
                 self.history['train_metrics'].append(train_metrics)
                 
