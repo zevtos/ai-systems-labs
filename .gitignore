@@ -63,3 +63,4 @@ notebooks/output/
 *.pt
 *.pth
 *.ipynb_checkpoints/
+docs
