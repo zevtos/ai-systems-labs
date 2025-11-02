@@ -11,6 +11,7 @@ class SVM(BaseModel):
         self.weights = None
         self.bias = None
         self.history = {'train_loss': [], 'train_metrics': [], 'val_metrics': []}
+        self.threshold = 0.0
 
     def _hinge_loss(self, X, y):
         margins = 1 - y * (X @ self.weights + self.bias)
@@ -19,11 +20,13 @@ class SVM(BaseModel):
 
     def fit(self, X, y, X_val=None, y_val=None):
         n_samples, n_features = X.shape
-        self.weights = torch.zeros(n_features, device=self.device)
-        self.bias = torch.zeros(1, device=self.device)
+
+        if self.weights is None or self.bias is None:
+            self.weights = torch.zeros(n_features, device=self.device)
+            self.bias = torch.zeros(1, device=self.device)
 
         X, y = X.to(self.device), y.to(self.device)
-        y = torch.where(y == 0, -1, y)  # y in {-1, 1}
+        y = torch.where(y == 0, -1, y).float()
 
         for epoch in range(self.max_epochs):
             permutation = torch.randperm(n_samples)
@@ -59,12 +62,19 @@ class SVM(BaseModel):
             if epoch % 10 == 0 or epoch == self.max_epochs - 1:
                 print(f"Epoch {epoch+1}/{self.max_epochs}, loss={avg_loss:.4f}")
 
-    def predict(self, X):
+
+    def decision_function(self, X):
         X = X.to(self.device)
-        preds = X @ self.weights + self.bias
-        return torch.where(preds >= 0, 1.0, 0.0)
+        return X @ self.weights + self.bias  # raw margins
+
+    def predict(self, X):
+        scores = self.decision_function(X)
+        return torch.where(scores > self.threshold, 1.0, 0.0)
 
     def score(self, X, y):
+        X = X.to(self.device)
+        y01 = torch.where(y > 0, 1.0, 0.0).to(self.device)
         y_pred = self.predict(X)
-        y_prob = torch.sigmoid(X @ self.weights + self.bias)  # для ROC/F1
-        return ClassificationMetrics.metrics(y, y_pred, y_prob)
+        logits = X @ self.weights + self.bias
+        y_prob = torch.sigmoid(logits)
+        return ClassificationMetrics.metrics(y01, y_pred, y_prob)
