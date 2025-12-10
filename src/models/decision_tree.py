@@ -19,13 +19,19 @@ class DecisionTree:
         max_depth: int = 10,
         min_samples_split: int = 2,
         criterion: str = 'gini',
-        device: str = 'cpu'
+        device: str = 'cpu',
+        max_features: Optional[int] = None,
+        random_state: Optional[int] = None
     ):
         self.classification = classification
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.criterion = criterion
         self.device = device
+        self.max_features = max_features
+        self.random_state = random_state
+        if random_state is not None:
+            torch.manual_seed(random_state)
         self.root: Optional[Node] = None
         self.classes_: Optional[torch.Tensor] = None
         
@@ -103,7 +109,13 @@ class DecisionTree:
         n_features = X.shape[1]
         n_samples = len(X)
 
-        for feature_idx in range(n_features):
+        if self.max_features is not None and self.max_features < n_features:
+            features_to_consider = torch.randperm(n_features, device=device)[:self.max_features]
+        else:
+            features_to_consider = torch.arange(n_features, device=device)
+
+        for feature_idx in features_to_consider:
+            feature_idx = feature_idx.item() if isinstance(feature_idx, torch.Tensor) else feature_idx
             feature_values = X[:, feature_idx]
 
             sorted_vals, _ = torch.sort(feature_values)
